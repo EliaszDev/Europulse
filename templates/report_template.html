@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{ title }} — {{ report_date }}</title>
+  <style>
+    :root { --bg: #f8f9fa; --card: #ffffff; --text: #212529; --muted: #6c757d; --primary: #0d6efd; --success: #198754; --danger: #dc3545; --warning: #ffc107; }
+    * { box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 0; line-height: 1.6; }
+    .container { max-width: 1100px; margin: 0 auto; padding: 2rem 1rem; }
+    header { border-bottom: 3px solid var(--primary); padding-bottom: 1rem; margin-bottom: 2rem; }
+    header h1 { margin: 0; font-size: 1.8rem; }
+    header .meta { color: var(--muted); font-size: 0.9rem; margin-top: 0.25rem; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1rem; margin-bottom: 2rem; }
+    .card { background: var(--card); border-radius: 0.5rem; padding: 1.25rem; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+    .card h3 { margin: 0 0 0.75rem 0; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); }
+    .big { font-size: 2rem; font-weight: 700; }
+    .badge { display: inline-block; padding: 0.25em 0.6em; border-radius: 999px; font-size: 0.75rem; font-weight: 600; text-transform: uppercase; }
+    .badge-info { background: #e7f1ff; color: #0d6efd; }
+    .badge-warning { background: #fff3cd; color: #856404; }
+    .badge-danger { background: #f8d7da; color: #721c24; }
+    .badge-success { background: #d1e7dd; color: #0f5132; }
+    .section { margin-bottom: 2.5rem; }
+    .section h2 { font-size: 1.3rem; border-left: 4px solid var(--primary); padding-left: 0.75rem; margin-bottom: 1rem; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.9rem; background: var(--card); border-radius: 0.5rem; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+    th, td { padding: 0.75rem 1rem; text-align: left; }
+    th { background: #f1f3f5; font-weight: 600; font-size: 0.8rem; text-transform: uppercase; }
+    tr + tr td { border-top: 1px solid #e9ecef; }
+    .text-right { text-align: right; }
+    .positive { color: var(--success); }
+    .negative { color: var(--danger); }
+    .chart { background: var(--card); border-radius: 0.5rem; padding: 1rem; box-shadow: 0 1px 3px rgba(0,0,0,0.08); margin-bottom: 1rem; }
+    .news-item { padding: 0.75rem 0; border-bottom: 1px solid #e9ecef; }
+    .news-item:last-child { border-bottom: none; }
+    .news-title { font-weight: 600; margin-bottom: 0.25rem; }
+    .news-meta { font-size: 0.8rem; color: var(--muted); }
+    footer { text-align: center; color: var(--muted); font-size: 0.8rem; margin-top: 3rem; padding-top: 1rem; border-top: 1px solid #dee2e6; }
+    @media print { body { background: #fff; } .chart { box-shadow: none; border: 1px solid #dee2e6; } }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>{{ title }}</h1>
+      <div class="meta">Generated on {{ report_date }} | Data through {{ data_through }}</div>
+    </header>
+
+    <!-- KPI Cards -->
+    <div class="grid">
+      <div class="card">
+        <h3>Market Regime</h3>
+        <div class="big">
+          <span class="badge badge-{{ regime_badge }}">{{ regime }}</span>
+        </div>
+      </div>
+      <div class="card">
+        <h3>Active Alerts</h3>
+        <div class="big">{{ alert_count }}</div>
+      </div>
+      <div class="card">
+        <h3>Avg 30D Volatility</h3>
+        <div class="big">{{ avg_vol }}</div>
+      </div>
+      <div class="card">
+        <h3>Macro Snapshot</h3>
+        <div class="big">{{ macro_summary }}</div>
+      </div>
+    </div>
+
+    <!-- Price Overview -->
+    <div class="section">
+      <h2>Price Overview</h2>
+      <div class="chart">{{ price_chart|safe }}</div>
+      <table>
+        <thead>
+          <tr><th>Ticker</th><th class="text-right">Latest</th><th class="text-right">1W Change</th><th class="text-right">1M Change</th><th class="text-right">YTD Change</th></tr>
+        </thead>
+        <tbody>
+          {% for row in price_rows %}
+          <tr>
+            <td>{{ row.ticker }}</td>
+            <td class="text-right">{{ "%.2f"|format(row.latest) }}</td>
+            <td class="text-right {{ 'positive' if row.w1 >= 0 else 'negative' }}">{{ "%.2f%%"|format(row.w1 * 100) }}</td>
+            <td class="text-right {{ 'positive' if row.m1 >= 0 else 'negative' }}">{{ "%.2f%%"|format(row.m1 * 100) }}</td>
+            <td class="text-right {{ 'positive' if row.ytd >= 0 else 'negative' }}">{{ "%.2f%%"|format(row.ytd * 100) }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Risk Metrics -->
+    <div class="section">
+      <h2>Risk Metrics (Trailing 90D)</h2>
+      <table>
+        <thead>
+          <tr><th>Ticker</th><th class="text-right">Volatility</th><th class="text-right">Max Drawdown</th><th class="text-right">Sharpe</th><th class="text-right">Beta (vs SPY)</th></tr>
+        </thead>
+        <tbody>
+          {% for row in risk_rows %}
+          <tr>
+            <td>{{ row.ticker }}</td>
+            <td class="text-right">{{ "%.2f%%"|format(row.vol * 100) }}</td>
+            <td class="text-right negative">{{ "%.2f%%"|format(row.dd * 100) }}</td>
+            <td class="text-right">{{ "%.2f"|format(row.sharpe) }}</td>
+            <td class="text-right">{{ "%.2f"|format(row.beta) }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Forecasts -->
+    <div class="section">
+      <h2>Price Forecasts</h2>
+      <div class="chart">{{ forecast_chart|safe }}</div>
+    </div>
+
+    <!-- Alerts -->
+    <div class="section">
+      <h2>Active Alerts</h2>
+      {% if alerts %}
+      <table>
+        <thead>
+          <tr><th>Type</th><th>Asset</th><th>Severity</th><th>Message</th><th>Date</th></tr>
+        </thead>
+        <tbody>
+          {% for a in alerts %}
+          <tr>
+            <td>{{ a.type }}</td>
+            <td>{{ a.ticker or a.series }}</td>
+            <td><span class="badge badge-{{ a.severity }}">{{ a.severity }}</span></td>
+            <td>{{ a.message }}</td>
+            <td>{{ a.date }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <p style="color: var(--muted);">No active alerts.</p>
+      {% endif %}
+    </div>
+
+    <!-- Macro -->
+    <div class="section">
+      <h2>Macro Snapshot</h2>
+      <div class="chart">{{ macro_chart|safe }}</div>
+      <table>
+        <thead>
+          <tr><th>Series</th><th class="text-right">Latest</th><th class="text-right">1Y Change</th><th class="text-right">Trend</th></tr>
+        </thead>
+        <tbody>
+          {% for row in macro_rows %}
+          <tr>
+            <td>{{ row.series }}</td>
+            <td class="text-right">{{ "%.2f"|format(row.latest) }}</td>
+            <td class="text-right {{ 'positive' if row.yoy >= 0 else 'negative' }}">{{ "%.2f%%"|format(row.yoy * 100) }}</td>
+            <td class="text-right">{{ row.trend }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <!-- News -->
+    <div class="section">
+      <h2>Recent News</h2>
+      {% for article in news %}
+      <div class="news-item">
+        <div class="news-title">{{ article.title }}</div>
+        <div class="news-meta">{{ article.source }} | {{ article.published }} | Tagged: {{ article.tickers|join(", ") }}</div>
+      </div>
+      {% endfor %}
+    </div>
+
+    <footer>
+      EuroPulse Intelligence Report &mdash; Generated by EuroPulse v0.1.0
+    </footer>
+  </div>
+</body>
+</html>
