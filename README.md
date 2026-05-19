@@ -1,6 +1,6 @@
 # EuroPulse
 
-> Zero-GPU European financial intelligence platform — local RAG pipeline, LLM-powered synthesis, automated daily reporting.
+> Zero-GPU European financial intelligence platform - local RAG pipeline, LLM-powered synthesis, automated daily reporting.
 
 [![Python](https://img.shields.io/badge/Python-3.11+-3776AB?style=flat-square&logo=python&logoColor=white)](https://python.org)
 [![DuckDB](https://img.shields.io/badge/DuckDB-0.10+-FFF000?style=flat-square&logo=duckdb&logoColor=black)](https://duckdb.org)
@@ -12,7 +12,7 @@
 
 ## Overview
 
-EuroPulse ingests multi-source European financial data, runs a local RAG pipeline on financial news, and uses an LLM to generate macro regime narratives, risk summaries, and alert explanations — all without a GPU, at zero monthly cost.
+EuroPulse ingests multi-source European financial data, runs a local RAG pipeline on financial news, and uses an LLM to generate macro regime narratives, risk summaries, and alert explanations - all without a GPU, at zero monthly cost.
 
 Built to demonstrate production-level AI/ML engineering practices relevant to European fund administration, sovereign debt analysis, and UCITS-style risk reporting.
 
@@ -68,7 +68,7 @@ Built to demonstrate production-level AI/ML engineering practices relevant to Eu
 
 **ETL & Storage**
 - Multi-source ingestion: GPW equities, EU indices, FX rates, FRED macro series, ECB rates, RSS news feeds
-- DuckDB for structured data (prices, macro, alerts, LLM cache, logs) — single portable file
+- DuckDB for structured data (prices, macro, alerts, LLM cache, logs) - single portable file
 - Incremental (`--incremental`) and full backfill (`--backfill`) ingestion modes
 - Data quality validation: stale tickers, missing trading days, zero-volume detection
 
@@ -83,7 +83,7 @@ Built to demonstrate production-level AI/ML engineering practices relevant to Eu
 - ChromaDB vector store with ticker-mention metadata filtering
 - Full-text news extraction via `trafilatura`
 - LLM synthesis via OpenRouter (`deepseek/deepseek-r1:free`): regime narratives, risk summaries, alert explanations, data chat
-- Prompt-level DuckDB cache — repeated queries return instantly at $0 cost
+- Prompt-level DuckDB cache - repeated queries return instantly at $0 cost
 - Template fallback ensures the UI never breaks on rate limits or API outages
 
 **Interface & Reporting**
@@ -139,7 +139,7 @@ uv run python scripts/generate_report.py
 
 | Variable | Required | Description |
 |---|---|---|
-| `OPENROUTER_API_KEY` | Yes | OpenRouter API key — free tier sufficient |
+| `OPENROUTER_API_KEY` | Yes | OpenRouter API key - free tier sufficient |
 | `OLLAMA_BASE_URL` | No | Optional local LLM fallback (e.g. `http://localhost:11434`) |
 
 ---
@@ -208,7 +208,7 @@ europulse/
 uv run pytest tests/ -v
 ```
 
-Tests use in-memory DuckDB and `respx` to mock HTTP calls — no API key required.
+Tests use in-memory DuckDB and `respx` to mock HTTP calls - no API key required.
 
 ---
 
@@ -232,10 +232,10 @@ Upgrading to a paid OpenRouter model costs approximately $1–3/month for person
 
 EuroPulse tracks the data that matters most to European fund administrators:
 
-- **ECB policy regime** — marginal lending facility rate and its implications for fixed-income portfolios
-- **Sovereign spread (IT–DE 10Y)** — a key risk indicator for Euro area credit exposure
-- **UCITS-style risk metrics** — volatility, drawdown, and Sharpe ratio computed against `^STOXX50E` as benchmark
-- **PLN/EUR dynamics** — relevant for cross-border funds with Polish asset exposure under Luxembourg CSSF oversight
+- **ECB policy regime** - marginal lending facility rate and its implications for fixed-income portfolios
+- **Sovereign spread (IT–DE 10Y)** - a key risk indicator for Euro area credit exposure
+- **UCITS-style risk metrics** - volatility, drawdown, and Sharpe ratio computed against `^STOXX50E` as benchmark
+- **PLN/EUR dynamics** - relevant for cross-border funds with Polish asset exposure under Luxembourg CSSF oversight
 
 ---
 
@@ -258,4 +258,4 @@ No GPU is required for any part of the core pipeline. All embeddings run on CPU 
 
 ## License
 
-MIT — see [LICENSE](LICENSE).
+MIT - see [LICENSE](LICENSE).
