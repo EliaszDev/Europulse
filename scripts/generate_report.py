@@ -54,12 +54,18 @@ def main() -> int:
     results = []
 
     if args.format in ("html", "both"):
-        out = args.output or str(reports_dir / f"europulse_report_{timestamp}.html")
+        if args.output and args.format == "both":
+            out = f"{args.output}.html"
+        else:
+            out = args.output or str(reports_dir / f"europulse_report_{timestamp}.html")
         generate_html_report(db_path=args.db, output_path=out, title=args.title)
         results.append(f"HTML report written to: {out}")
 
     if args.format in ("pdf", "both"):
-        out = args.output or str(reports_dir / f"europulse_report_{timestamp}.pdf")
+        if args.output and args.format == "both":
+            out = f"{args.output}.pdf"
+        else:
+            out = args.output or str(reports_dir / f"europulse_report_{timestamp}.pdf")
         generate_pdf_report(output_path=out, db_path=args.db, title=args.title)
         results.append(f"PDF report written to: {out}")
 

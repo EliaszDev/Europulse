@@ -15,11 +15,10 @@ from plotly.subplots import make_subplots
 
 from europulse import config
 from europulse.analysis.alerts import macro_alerts, price_alerts, risk_alerts
-from europulse.analysis.forecast import exp_smooth_forecast, linear_forecast
+from europulse.analysis.forecast import exp_smooth_forecast
 from europulse.analysis.regimes import detect_regimes
 from europulse.analysis.risk import (
     beta_to_benchmark,
-    correlation_matrix,
     max_drawdown,
     rolling_volatility,
     sharpe_ratio,
@@ -29,7 +28,10 @@ TEMPLATE_DIR = Path(__file__).resolve().parents[2] / "templates"
 
 
 def _load_template(name: str) -> jinja2.Template:
-    env = jinja2.Environment(loader=jinja2.FileSystemLoader(str(TEMPLATE_DIR)))
+    env = jinja2.Environment(
+        loader=jinja2.FileSystemLoader(str(TEMPLATE_DIR)),
+        autoescape=jinja2.select_autoescape(["html", "xml"]),
+    )
     return env.get_template(name)
 
 
@@ -70,32 +72,32 @@ def _forecast_chart(prices_df: pd.DataFrame, days: int = 30) -> str:
         prices = group["close"]
         if len(prices) < 30:
             continue
-            fc_df = exp_smooth_forecast(prices, horizon=days)
-            fc = fc_df["forecast"].to_numpy()
-            lower = fc_df["lower"].to_numpy()
-            upper = fc_df["upper"].to_numpy()
-            last_date = group["date"].iloc[-1]
-            hist_dates = group["date"]
-            fc_dates = pd.date_range(start=last_date + timedelta(days=1), periods=days, freq="B")
-            row = idx // 2 + 1
-            col = idx % 2 + 1
-            fig.add_trace(
-                go.Scatter(x=hist_dates, y=prices, mode="lines", name="History", line=dict(color="#0d6efd")),
-                row=row, col=col,
-            )
-            fig.add_trace(
-                go.Scatter(x=fc_dates, y=fc, mode="lines", name="Forecast", line=dict(color="#198754", dash="dash")),
-                row=row, col=col,
-            )
-            fig.add_trace(
-                go.Scatter(
-                    x=list(fc_dates) + list(fc_dates[::-1]),
-                    y=list(upper) + list(lower[::-1]),
-                    fill="toself", fillcolor="rgba(25,135,84,0.15)",
-                    line=dict(color="rgba(0,0,0,0)"), name="±1σ", showlegend=False,
-                ),
-                row=row, col=col,
-            )
+        fc_df = exp_smooth_forecast(prices, horizon=days)
+        fc = fc_df["forecast"].to_numpy()
+        lower = fc_df["lower"].to_numpy()
+        upper = fc_df["upper"].to_numpy()
+        last_date = group["date"].iloc[-1]
+        hist_dates = group["date"]
+        fc_dates = pd.date_range(start=last_date + timedelta(days=1), periods=days, freq="B")
+        row = idx // 2 + 1
+        col = idx % 2 + 1
+        fig.add_trace(
+            go.Scatter(x=hist_dates, y=prices, mode="lines", name="History", line=dict(color="#0d6efd")),
+            row=row, col=col,
+        )
+        fig.add_trace(
+            go.Scatter(x=fc_dates, y=fc, mode="lines", name="Forecast", line=dict(color="#198754", dash="dash")),
+            row=row, col=col,
+        )
+        fig.add_trace(
+            go.Scatter(
+                x=list(fc_dates) + list(fc_dates[::-1]),
+                y=list(upper) + list(lower[::-1]),
+                fill="toself", fillcolor="rgba(25,135,84,0.15)",
+                line=dict(color="rgba(0,0,0,0)"), name="±1σ", showlegend=False,
+            ),
+            row=row, col=col,
+        )
     fig.update_layout(
         height=300 * ((len(tickers) + 1) // 2),
         template="plotly_white",
@@ -226,14 +228,14 @@ def generate_html_report(
     If output_path is provided, also write to disk.
     """
     con = duckdb.connect(db_path, read_only=True)
-
-    # Load data
-    prices = con.execute("SELECT * FROM prices ORDER BY ticker, date").fetchdf()
-    macro = con.execute("SELECT * FROM macro ORDER BY series, date").fetchdf()
-    news = con.execute(
-        "SELECT title, source, published, tickers FROM news ORDER BY published DESC LIMIT 10"
-    ).fetchdf()
-    con.close()
+    try:
+        prices = con.execute("SELECT * FROM prices ORDER BY ticker, date").fetchdf()
+        macro = con.execute("SELECT * FROM macro ORDER BY series, date").fetchdf()
+        news = con.execute(
+            "SELECT title, source, published, tickers FROM news ORDER BY published DESC LIMIT 10"
+        ).fetchdf()
+    finally:
+        con.close()
 
     # Run analysis
     regime = "Unknown"
@@ -264,7 +266,10 @@ def generate_html_report(
     # News formatting
     news_items = []
     for _, row in news.iterrows():
-        tickers = json.loads(row["tickers"]) if isinstance(row["tickers"], str) else row["tickers"] or []
+        try:
+            tickers = json.loads(row["tickers"]) if isinstance(row["tickers"], str) else row["tickers"] or []
+        except Exception:
+            tickers = []
         news_items.append(
             {
                 "title": row["title"],

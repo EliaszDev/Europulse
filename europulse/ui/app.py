@@ -9,7 +9,6 @@ import duckdb
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
-from plotly.subplots import make_subplots
 import streamlit as st
 
 from europulse import config
@@ -17,7 +16,6 @@ from europulse.analysis.alerts import macro_alerts, price_alerts, risk_alerts
 from europulse.analysis.forecast import exp_smooth_forecast
 from europulse.analysis.regimes import detect_regimes
 from europulse.analysis.risk import (
-    beta_to_benchmark,
     max_drawdown,
     rolling_volatility,
     sharpe_ratio,
@@ -41,7 +39,11 @@ def load_data():
     return prices, macro, news
 
 
-prices_df, macro_df, news_df = load_data()
+try:
+    prices_df, macro_df, news_df = load_data()
+except Exception as e:
+    st.error(f"Failed to load database: {e}")
+    prices_df, macro_df, news_df = pd.DataFrame(), pd.DataFrame(), pd.DataFrame()
 
 # ---------------------------------------------------------------------------
 # Sidebar
@@ -75,7 +77,11 @@ if page == "Overview":
     st.title("EuroPulse Overview")
 
     col1, col2, col3, col4 = st.columns(4)
-    regime = detect_regimes(macro_df) if not macro_df.empty else "N/A"
+    if not macro_df.empty:
+        regime_df = detect_regimes(macro_df)
+        regime = regime_df["composite_regime"].iloc[-1] if not regime_df.empty else "N/A"
+    else:
+        regime = "N/A"
     col1.metric("Market Regime", regime)
 
     all_alerts = price_alerts(prices_df) + macro_alerts(macro_df) + risk_alerts(prices_df)
@@ -204,12 +210,15 @@ elif page == "Forecasts":
         horizon = st.slider("Forecast horizon (days)", 5, 60, 30)
 
         group = prices_df[prices_df["ticker"] == selected].sort_values("date")
-        prices = group["close"].to_numpy()
+        prices = group["close"]
 
         if len(prices) < 30:
             st.warning("Need at least 30 data points for forecasting.")
         else:
-            fc, lower, upper = exp_smooth_forecast(prices, horizon=horizon)
+            fc_df = exp_smooth_forecast(prices, horizon=horizon)
+            fc = fc_df["forecast"].to_numpy()
+            lower = fc_df["lower"].to_numpy()
+            upper = fc_df["upper"].to_numpy()
             last_date = group["date"].iloc[-1]
             hist_dates = group["date"]
             fc_dates = pd.date_range(start=last_date + timedelta(days=1), periods=horizon, freq="B")
@@ -230,8 +239,8 @@ elif page == "Forecasts":
             )
             st.plotly_chart(fig, use_container_width=True)
 
-            st.metric("Current Price", f"{prices[-1]:.2f}")
-            st.metric("Forecast (end)", f"{fc[-1]:.2f}", delta=f"{(fc[-1] / prices[-1] - 1) * 100:.2f}%")
+            st.metric("Current Price", f"{prices.iloc[-1]:.2f}")
+            st.metric("Forecast (end)", f"{fc[-1]:.2f}", delta=f"{(fc[-1] / prices.iloc[-1] - 1) * 100:.2f}%")
 
 # ---------------------------------------------------------------------------
 # Alerts

@@ -3,8 +3,6 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import TYPE_CHECKING
-
 from europulse.reporting.html_generator import generate_html_report
 
 try:
