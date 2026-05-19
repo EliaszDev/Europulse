@@ -112,6 +112,9 @@ ALERT_THRESHOLDS: dict[str, float] = {
     "yield_curve_inversion_days": 30.0,
     "gpw_drawdown_pct": 15.0,
     "eurpln_high": 4.50,
+    "rsi_overbought": 70.0,
+    "rsi_oversold": 30.0,
+    "volume_spike": 2.0,
 }
 
 # ---------------------------------------------------------------------------
