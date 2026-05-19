@@ -1,0 +1,96 @@
+<svg width="700" viewBox="0 0 680 740" xmlns="http://www.w3.org/2000/svg" role="img">
+  <title>EuroPulse architecture</title>
+  <desc>Data flow from sources through ingestion, DuckDB, RAG, analysis, intelligence, and output layers</desc>
+
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M2 1L8 5L2 9" fill="none" stroke="#888780" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+    </marker>
+  </defs>
+
+  <style>
+    text { font-family: ui-monospace, "SFMono-Regular", Menlo, Monaco, Consolas, monospace; }
+    .label-title { font-size: 14px; font-weight: 600; fill: #2C2C2A; }
+    .label-sub   { font-size: 12px; font-weight: 400; fill: #5F5E5A; }
+    .arr { stroke: #888780; stroke-width: 1.2; fill: none; marker-end: url(#arrow); }
+  </style>
+
+  <!-- DATA SOURCES -->
+  <rect x="40" y="30" width="600" height="70" rx="6" fill="#F1EFE8" stroke="#B4B2A9" stroke-width="0.8"/>
+  <text class="label-title" x="340" y="56" text-anchor="middle">DATA SOURCES</text>
+  <text class="label-sub"   x="160" y="78" text-anchor="middle">yfinance (OHLCV)</text>
+  <text class="label-sub"   x="340" y="78" text-anchor="middle">FRED / ECB SDW (macro)</text>
+  <text class="label-sub"   x="520" y="78" text-anchor="middle">RSS (news)</text>
+
+  <!-- Arrows: sources → ingestion -->
+  <line x1="160" y1="100" x2="160" y2="145" class="arr"/>
+  <line x1="340" y1="100" x2="340" y2="145" class="arr"/>
+  <line x1="520" y1="100" x2="520" y2="145" class="arr"/>
+
+  <!-- INGESTION: prices -->
+  <rect x="60"  y="145" width="190" height="66" rx="6" fill="#E1F5EE" stroke="#5DCAA5" stroke-width="0.8"/>
+  <text class="label-title" x="155" y="168" text-anchor="middle">ingestion layer</text>
+  <text class="label-sub"   x="155" y="186" text-anchor="middle">prices.py</text>
+  <text class="label-sub"   x="155" y="200" text-anchor="middle">quality.py</text>
+
+  <!-- INGESTION: macro -->
+  <rect x="245" y="145" width="190" height="66" rx="6" fill="#E1F5EE" stroke="#5DCAA5" stroke-width="0.8"/>
+  <text class="label-title" x="340" y="168" text-anchor="middle">macro.py</text>
+  <text class="label-sub"   x="340" y="186" text-anchor="middle">(FRED+ECB)</text>
+
+  <!-- INGESTION: news -->
+  <rect x="430" y="145" width="190" height="66" rx="6" fill="#E1F5EE" stroke="#5DCAA5" stroke-width="0.8"/>
+  <text class="label-title" x="525" y="168" text-anchor="middle">news.py</text>
+  <text class="label-sub"   x="525" y="186" text-anchor="middle">(RSS+trafilatura)</text>
+
+  <!-- Arrows: ingestion → DuckDB / RAG -->
+  <line x1="155" y1="211" x2="220" y2="275" class="arr"/>
+  <line x1="340" y1="211" x2="300" y2="275" class="arr"/>
+  <line x1="525" y1="211" x2="525" y2="275" class="arr"/>
+
+  <!-- DUCKDB -->
+  <rect x="60"  y="275" width="360" height="66" rx="6" fill="#E6F1FB" stroke="#85B7EB" stroke-width="0.8"/>
+  <text class="label-title" x="240" y="298" text-anchor="middle">DuckDB</text>
+  <text class="label-sub"   x="240" y="318" text-anchor="middle">prices  |  macro  |  alerts  |  cache</text>
+
+  <!-- RAG -->
+  <rect x="430" y="275" width="190" height="66" rx="6" fill="#EEEDFE" stroke="#AFA9EC" stroke-width="0.8"/>
+  <text class="label-title" x="525" y="295" text-anchor="middle">rag.py</text>
+  <text class="label-sub"   x="525" y="313" text-anchor="middle">ChromaDB</text>
+  <text class="label-sub"   x="525" y="329" text-anchor="middle">MiniLM-L6-v2</text>
+
+  <!-- Arrows: storage → analysis -->
+  <line x1="240" y1="341" x2="240" y2="405" class="arr"/>
+  <line x1="525" y1="341" x2="430" y2="405" class="arr"/>
+
+  <!-- ANALYSIS LAYER -->
+  <rect x="60" y="405" width="560" height="76" rx="6" fill="#FAEEDA" stroke="#EF9F27" stroke-width="0.8"/>
+  <text class="label-title" x="340" y="428" text-anchor="middle">ANALYSIS LAYER</text>
+  <text class="label-sub"   x="185" y="450" text-anchor="middle">regimes.py (EU macro regime)</text>
+  <text class="label-sub"   x="185" y="466" text-anchor="middle">forecast.py (baseline models)</text>
+  <text class="label-sub"   x="490" y="450" text-anchor="middle">risk.py (UCITS metrics)</text>
+  <text class="label-sub"   x="490" y="466" text-anchor="middle">alerts.py (thresholds)</text>
+
+  <!-- Arrow: analysis → intelligence -->
+  <line x1="340" y1="481" x2="340" y2="535" class="arr"/>
+
+  <!-- INTELLIGENCE LAYER -->
+  <rect x="60" y="535" width="560" height="66" rx="6" fill="#FAECE7" stroke="#F0997B" stroke-width="0.8"/>
+  <text class="label-title" x="340" y="558" text-anchor="middle">INTELLIGENCE LAYER</text>
+  <text class="label-sub"   x="340" y="578" text-anchor="middle">llm_client.py (OpenRouter + DuckDB cache + fallback)</text>
+  <text class="label-sub"   x="340" y="594" text-anchor="middle">synthesizer.py (narrative / risk / chat / alerts)</text>
+
+  <!-- Arrows: intelligence → outputs -->
+  <line x1="225" y1="601" x2="175" y2="650" class="arr"/>
+  <line x1="455" y1="601" x2="505" y2="650" class="arr"/>
+
+  <!-- OUTPUT: Streamlit UI -->
+  <rect x="60"  y="650" width="230" height="60" rx="6" fill="#F1EFE8" stroke="#B4B2A9" stroke-width="0.8"/>
+  <text class="label-title" x="175" y="672" text-anchor="middle">Streamlit UI</text>
+  <text class="label-sub"   x="175" y="692" text-anchor="middle">4-tab dashboard  ·  RAG chat</text>
+
+  <!-- OUTPUT: Reports -->
+  <rect x="390" y="650" width="230" height="60" rx="6" fill="#F1EFE8" stroke="#B4B2A9" stroke-width="0.8"/>
+  <text class="label-title" x="505" y="672" text-anchor="middle">HTML / PDF report</text>
+  <text class="label-sub"   x="505" y="692" text-anchor="middle">Jinja2  ·  GitHub Actions</text>
+</svg>
