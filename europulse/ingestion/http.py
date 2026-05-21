@@ -14,7 +14,7 @@ DEFAULT_MAX_ATTEMPTS = 3
 
 
 def set_default_max_attempts(n: int) -> None:
-    """Override the global default retry attempts for fetch_url."""
+    """Override the global default retry attempts for HTTP requests."""
     global DEFAULT_MAX_ATTEMPTS
     DEFAULT_MAX_ATTEMPTS = n
 
@@ -28,15 +28,24 @@ def _is_retryable(exc: BaseException) -> bool:
     return False
 
 
-def _fetch_once(url: str, **kwargs) -> httpx.Response:
+def _request_once(
+    url: str,
+    method: str = "GET",
+    **kwargs,
+) -> httpx.Response:
     with httpx.Client() as client:
-        response = client.get(url, **kwargs)
+        response = client.request(method, url, **kwargs)
         response.raise_for_status()
         return response
 
 
-def fetch_url(url: str, max_attempts: int | None = None, **kwargs) -> httpx.Response:
-    """GET *url* with automatic retries on transient errors.
+def request(
+    url: str,
+    method: str = "GET",
+    max_attempts: int | None = None,
+    **kwargs,
+) -> httpx.Response:
+    """Perform an HTTP request with automatic retries on transient errors.
 
     Retries on connection errors, timeouts, and HTTP 429/5xx status codes.
     *max_attempts* overrides the module default when provided.
@@ -50,4 +59,12 @@ def fetch_url(url: str, max_attempts: int | None = None, **kwargs) -> httpx.Resp
     )
     for attempt in retryer:
         with attempt:
-            return _fetch_once(url, **kwargs)
+            return _request_once(url, method=method, **kwargs)
+
+
+def fetch_url(url: str, max_attempts: int | None = None, **kwargs) -> httpx.Response:
+    """GET *url* with automatic retries on transient errors.
+
+    Convenience wrapper around :func:`request`.
+    """
+    return request(url, method="GET", max_attempts=max_attempts, **kwargs)

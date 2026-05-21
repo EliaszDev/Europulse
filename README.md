@@ -1,118 +1,108 @@
-# EuroPulse
+# 🇪🇺 EuroPulse — European Financial Intelligence Platform
 
-**European financial intelligence, automated daily.**
+A modular, RAG-powered dashboard that fetches European price data, macro indicators (FRED / ECB), and financial news, then synthesises everything into an LLM-generated executive summary with risk alerts.
 
-EuroPulse monitors EU macro regimes, Polish and Eurozone equity risk, and financial news — then synthesises it into plain-language narratives, alerts, and downloadable reports using an AI research assistant you can ask questions directly.
-
-[![Live Demo](https://img.shields.io/badge/Live_Demo-Open_App-FF4B4B?style=flat-square&logo=streamlit&logoColor=white)](https://YOUR_APP.streamlit.app)
-[![License: MIT](https://img.shields.io/badge/License-MIT-22c55e?style=flat-square)](LICENSE)
-
----
-
-## What it does
-
-**Regime monitoring** — Tracks ECB policy stance, Euro area inflation, and yield curve shape. Classifies the current macro environment daily and flags when it shifts.
-
-**Risk reporting** — Computes volatility, drawdown, Sharpe ratio, and correlation across GPW and Eurozone equities. Highlights the top risks in a one-page summary.
-
-**News intelligence** — Pulls financial news from Reuters and the FT, links articles to relevant tickers, and surfaces them in the AI chat as cited sources.
-
-**Automated reports** — Generates a dated HTML report every weekday morning with the latest regime assessment, risk table, and active alerts. No manual work required.
-
-**AI research assistant** — Ask questions like *"Why is EURPLN rising?"* or *"What's the current risk outlook for PKN.WA?"* and get answers grounded in today's data with source citations.
-
----
+[![Demo](https://img.shields.io/badge/Live_Demo-Streamlit-orange)](https://your-streamlit-url.streamlit.app)
 
 ## Architecture
 
-```
-┌─────────────────────────────────────────────────────────────────────┐
-│                          DATA SOURCES                               │
-│   yfinance (OHLCV)   │   FRED / ECB SDW (macro)   │   RSS (news)   │
-└──────────┬───────────────────────┬─────────────────────┬────────────┘
-           │                       │                     │
-           ▼                       ▼                     ▼
-┌──────────────────┐   ┌───────────────────┐   ┌─────────────────────┐
-│ ingestion layer  │   │    macro.py        │   │      news.py        │
-│ prices.py        │   │    (FRED+ECB)      │   │  (RSS+trafilatura)  │
-│ quality.py       │   └─────────┬─────────┘   └──────────┬──────────┘
-└────────┬─────────┘             │                         │
-         │                       │                         ▼
-         └───────────┬───────────┘             ┌─────────────────────┐
-                     ▼                         │       rag.py        │
-        ┌────────────────────────┐             │      ChromaDB       │
-        │         DuckDB         │             │    MiniLM-L6-v2     │
-        │ prices│macro│alerts│cache            └──────────┬──────────┘
-        └────────────┬───────────┘                        │
-                     └─────────────────┬──────────────────┘
-                                       ▼
-        ┌──────────────────────────────────────────────────────────┐
-        │                      ANALYSIS LAYER                      │
-        │  regimes.py (EU macro regime) │ risk.py (UCITS metrics)  │
-        │  forecast.py (baseline models)│ alerts.py (thresholds)   │
-        └──────────────────────────────┬───────────────────────────┘
-                                       │
-                                       ▼
-        ┌──────────────────────────────────────────────────────────┐
-        │                    INTELLIGENCE LAYER                    │
-        │   llm_client.py  (OpenRouter + DuckDB cache + fallback)  │
-        │   synthesizer.py (narrative / risk / chat / alerts)      │
-        └───────────────────┬──────────────────────────────────────┘
-                            │
-              ┌─────────────┴─────────────┐
-              ▼                           ▼
-┌─────────────────────────┐   ┌───────────────────────────┐
-│       Streamlit UI      │   │     HTML / PDF report     │
-│   4-tab dashboard       │   │   Jinja2 + weasyprint     │
-│   RAG chat              │   │   GitHub Actions          │
-└─────────────────────────┘   └───────────────────────────┘
+```mermaid
+graph TD
+    A[Stooq / ECB / FRED] --> B(DuckDB)
+    C[Financial News RSS] --> D[ChromaDB + Embeddings]
+    B --> E[Analysis Engine]
+    D --> F[OpenRouter / Local LLM]
+    E --> G[Streamlit Dashboard]
+    F --> G
+    G --> H[PDF & HTML Reports]
 ```
 
----
+## Key Features
 
-## Getting started
+- **Multi-source ingestion** — Stooq price data, ECB interest rates, FRED macro series (CPI, unemployment, GDP), Polish National Bank (NBP) exchange rates
+- **RAG pipeline** — ChromaDB vector store with sentence-transformer embeddings, news deduplication, and LLM synthesis via OpenRouter (or local Ollama fallback)
+- **Analysis engine** — RSI, Bollinger Bands, rolling volatility, VaR, Sharpe ratio, regime detection, exponential-smoothing forecast
+- **Risk alerts** — Threshold-based RSI and volatility alerts with optional Slack / Discord webhook dispatch
+- **Reporting** — Jinja2 + Plotly HTML reports and WeasyPrint PDF generation
+- **Interactive dashboard** — Streamlit with price charts, macro overlays, risk heatmaps, forecast bands, and LLM chat interface
+- **Incremental ETL** — `--incremental` flag fetches only new data since the last DB max date
+- **Retry resilience** — Tenacity-backed HTTP retry on 429/5xx and transient network errors
 
-You need Python 3.11+, [`uv`](https://docs.astral.sh/uv/), and a free [OpenRouter](https://openrouter.ai) API key.
+## Quickstart
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/europulse
-cd europulse
-uv sync
-cp .env.example .env   # paste your OPENROUTER_API_KEY
-uv run python scripts/ingest_all.py --backfill
-uv run streamlit run europulse/ui/app.py
+# Clone
+git clone https://github.com/EliaszDev/Europulse.git
+cd Europulse
+
+# Create virtual environment
+python3 -m venv .venv
+source .venv/bin/activate
+
+# Install dependencies
+pip install -e ".[dev]"
+
+# Configure environment
+cp .env.example .env
+# Edit .env — add FRED_API_KEY and OPENROUTER_API_KEY
+
+# Initialise database
+python -c "from europulse.ingestion.db import get_conn, create_schema; create_schema(get_conn())"
+
+# Run full backfill
+python scripts/ingest_all.py --backfill
+
+# Launch dashboard
+streamlit run europulse/ui/app.py
 ```
 
-Then open `http://localhost:8501`.
+### Hardware Notes
 
-For daily updates, run:
+- **CPU only** — all inference defaults to OpenRouter cloud LLMs; local Ollama is optional
+- **RAM** — ~4 GB sufficient for DuckDB + ChromaDB + sentence-transformers (`all-MiniLM-L6-v2`)
+- **Disk** — ~2 GB for 2 years of daily price + macro data, embeddings, and report cache
+- **GPU** — not required; PyTorch CPU wheels are used by default
 
-```bash
-uv run python scripts/ingest_all.py --incremental
-uv run python scripts/generate_report.py
-```
+## Why European Finance?
 
-Or let GitHub Actions do it automatically every weekday morning.
+EuroPulse is built to surface macro-financial signals relevant to European institutional investors, Luxembourg-domiciled funds, and EIB project finance desks:
 
----
+- **Luxembourg** — the EU's largest investment-fund centre; fund managers need real-time EUR-denominated risk metrics and macro overlays
+- **European Investment Bank (EIB)** — the EU's lending arm monitors EUR-area CPI, ECB rates, and sovereign spreads to price project-finance risk
+- **Coverage** — SX5E (Euro Stoxx 50), SXXP (Stoxx Europe 600), DAX, CAC 40, and EUR macro series provide a representative European basket
 
-## Built with
+## Screenshots
 
-Python · DuckDB · ChromaDB · sentence-transformers · OpenRouter · Streamlit · Plotly · GitHub Actions
+| Regime Detection | Risk Heatmap | Forecast |
+|---|---|---|
+| ![Regime](assets/regime_chart.png) | ![Heatmap](assets/risk_heatmap.png) | ![Forecast](assets/forecast_chart.png) |
 
-All data sources are free. No GPU required. Monthly cost: **$0**.
-
----
+*Chat interface and full sample report are available in the live Streamlit demo.*
 
 ## Roadmap
 
-- Sentiment scoring on news articles (FinBERT)
-- Polish National Bank (NBP) official exchange rate feed
-- Luxembourg Stock Exchange (LuxSE) tickers
-- Slack / Discord alert webhooks
+| Milestone | Status | Key Deliverables |
+|---|---|---|
+| Week 1 — Data Ingestion | ✅ | Stooq/FRED/ECB fetchers, DuckDB schema, incremental upserts |
+| Week 2 — Analysis Engine | ✅ | RSI, Bollinger, VaR, Sharpe, regime detection, exp-smooth forecast |
+| Week 3 — RAG Pipeline | ✅ | News fetcher, ChromaDB embeddings, ticker tagging, LLM synthesis |
+| Week 4 — Reporting & Dashboard | ✅ | Jinja2/Plotly HTML, WeasyPrint PDF, Streamlit UI |
+| Week 5 — LLM Switching & Context | ✅ | OpenRouter + Ollama fallback, prompt caching, streaming chat |
+| Week 6 — Hard Reset & Retry Logic | ✅ | Tenacity retry wrapper, `since` params for incremental ingestion, report DB logging |
+| Week 7 — Polish & Deployment | ✅ | README rewrite, `.streamlit/config.toml`, screenshot assets, NBP fetcher, webhook alerts |
 
----
+### Future Ideas
+
+- FinBERT sentiment scoring on news articles
+- Luxembourg Stock Exchange (LuxSE) tickers
+- FastAPI alert webhook server with retry logic
+
+## Requirements
+
+- Python ≥ 3.11
+- See `pyproject.toml` for full dependency list
+- Chrome / Chromium only required for `scripts/generate_screenshots.py` (dev dependency `kaleido` bundles it)
 
 ## License
 
-MIT — see [LICENSE](LICENSE).
+MIT © EliaszDev
