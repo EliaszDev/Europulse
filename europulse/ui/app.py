@@ -147,7 +147,7 @@ with tabs[1]:
 
         for t, g in filtered_prices.groupby("ticker"):
             g = g.sort_values("date")
-            prices = g["close"].to_numpy()
+            prices = g["close"]
             if len(prices) < window:
                 continue
             vol = rolling_volatility(prices, window=window)
