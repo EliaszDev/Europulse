@@ -36,15 +36,6 @@ def create_schema(conn: duckdb.DuckDBPyConnection) -> None:
         )
     """)
     conn.execute("""
-        CREATE TABLE IF NOT EXISTS llm_cache (
-            prompt_hash TEXT PRIMARY KEY,
-            prompt TEXT,
-            response TEXT,
-            model TEXT,
-            created_at TIMESTAMP DEFAULT current_timestamp
-        )
-    """)
-    conn.execute("""
         CREATE TABLE IF NOT EXISTS alerts (
             id INTEGER PRIMARY KEY,
             alert_type TEXT,

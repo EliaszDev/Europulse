@@ -6,12 +6,12 @@ import hashlib
 import os
 from typing import Any
 
+import duckdb
 import httpx
-
-from europulse.ingestion.db import get_conn
 
 _DEFAULT_MODEL = "openrouter/optimus-alpha"
 _OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
+_CACHE_DB = "prompt_cache.duckdb"
 
 
 def _hash_prompt(prompt: str) -> str:
@@ -20,6 +20,22 @@ def _hash_prompt(prompt: str) -> str:
 
 def _get_api_key() -> str | None:
     return os.getenv("OPENROUTER_API_KEY")
+
+
+def _get_cache_conn() -> duckdb.DuckDBPyConnection:
+    conn = duckdb.connect(_CACHE_DB)
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS llm_cache (
+            prompt_hash TEXT PRIMARY KEY,
+            prompt TEXT,
+            response TEXT,
+            model TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+        """
+    )
+    return conn
 
 
 def query_llm(
@@ -41,7 +57,7 @@ def query_llm(
 
     # Check cache
     if use_cache:
-        conn = get_conn()
+        conn = _get_cache_conn()
         try:
             row = conn.execute(
                 "SELECT response FROM llm_cache WHERE prompt_hash = ?",
@@ -82,7 +98,7 @@ def query_llm(
 
     # Store in cache
     if use_cache:
-        conn = get_conn()
+        conn = _get_cache_conn()
         try:
             conn.execute(
                 """
