@@ -1,10 +1,11 @@
-"""ETL entrypoint — prices + macro + quality validation."""
+"""ETL entrypoint — prices + macro + news + quality validation + freshness checks."""
 
 from __future__ import annotations
 
 import argparse
 import os
 import sys
+from datetime import datetime, timedelta, timezone
 
 from dotenv import load_dotenv
 
@@ -12,7 +13,10 @@ from europulse import config
 from europulse.ingestion.db import create_schema, get_conn, upsert_macro, upsert_prices
 from europulse.ingestion.macro import fetch_ecb, fetch_fred
 from europulse.ingestion.prices import fetch_prices
-from europulse.ingestion.quality import validate_prices
+from europulse.ingestion.quality import check_freshness, validate_prices
+from europulse.rag.embeddings import add_articles
+from europulse.rag.news import deduplicate, fetch_all_feeds
+from europulse.rag.ticker_tagging import tag_articles
 
 
 def _acquire_lock(lock_path: str = "data/.lock") -> bool:
@@ -85,6 +89,24 @@ def main() -> int:
             print(f"  -> {len(ecb_df)} ECB rows inserted")
         else:
             print("  -> No ECB data returned")
+
+        # News (incremental only)
+        if args.incremental:
+            print("Fetching news (last 24h)...")
+            since = datetime.now(timezone.utc) - timedelta(hours=24)
+            articles = fetch_all_feeds(max_articles_per_feed=20, since=since)
+            print(f"  -> {len(articles)} raw articles")
+            articles = deduplicate(articles)
+            articles = tag_articles(articles)
+            inserted = add_articles(articles)
+            print(f"  -> {inserted} new articles embedded")
+
+        # Data freshness check
+        print("Checking data freshness...")
+        freshness = check_freshness(conn)
+        for table, info in freshness.items():
+            status = "OK" if info["ok"] else "STALE"
+            print(f"  -> {table}: max_date={info['max_date']}, age_days={info['age_days']:.1f} [{status}]")
 
         conn.close()
         print("ETL complete.")

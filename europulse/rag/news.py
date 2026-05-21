@@ -41,7 +41,9 @@ def _parse_published(entry: dict[str, Any]) -> datetime | None:
     return None
 
 
-def fetch_feed(name: str, url: str, max_articles: int = 20) -> list[dict]:
+def fetch_feed(
+    name: str, url: str, max_articles: int = 20, since: datetime | None = None
+) -> list[dict]:
     """Fetch and parse a single RSS feed.
 
     Returns a list of article dicts with keys:
@@ -62,6 +64,11 @@ def fetch_feed(name: str, url: str, max_articles: int = 20) -> list[dict]:
         summary = entry.get("summary", "").strip()
         published = _parse_published(entry)
 
+        if since is not None and published is not None:
+            since_naive = since.replace(tzinfo=None)
+            if published < since_naive:
+                continue
+
         # Use title+summary for dedup hash; fetch full text if link present
         text_for_hash = f"{title} {summary}"
         content_hash = _hash(text_for_hash)
@@ -80,11 +87,13 @@ def fetch_feed(name: str, url: str, max_articles: int = 20) -> list[dict]:
     return articles
 
 
-def fetch_all_feeds(max_articles_per_feed: int = 20) -> list[dict]:
+def fetch_all_feeds(
+    max_articles_per_feed: int = 20, since: datetime | None = None
+) -> list[dict]:
     """Fetch all configured RSS feeds."""
     all_articles = []
     for name, url in config.RSS_FEEDS.items():
-        articles = fetch_feed(name, url, max_articles=max_articles_per_feed)
+        articles = fetch_feed(name, url, max_articles=max_articles_per_feed, since=since)
         all_articles.extend(articles)
     return all_articles
 

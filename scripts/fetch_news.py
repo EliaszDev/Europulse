@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import sys
+from datetime import datetime, timedelta, timezone
 
 from europulse.ingestion.db import create_schema, get_conn
 from europulse.rag.embeddings import add_articles
@@ -24,7 +25,17 @@ def main() -> int:
         action="store_true",
         help="Fetch full article text via trafilatura",
     )
+    parser.add_argument(
+        "--since",
+        type=str,
+        default=None,
+        help="ISO datetime (e.g. 2024-01-01) — only fetch articles published since this date",
+    )
     args = parser.parse_args()
+
+    since = None
+    if args.since:
+        since = datetime.fromisoformat(args.since).replace(tzinfo=timezone.utc)
 
     # Ensure schema exists (for llm_cache if needed later)
     conn = get_conn()
@@ -32,7 +43,7 @@ def main() -> int:
     conn.close()
 
     print("Fetching RSS feeds...")
-    articles = fetch_all_feeds(max_articles_per_feed=args.max_per_feed)
+    articles = fetch_all_feeds(max_articles_per_feed=args.max_per_feed, since=since)
     print(f"  -> {len(articles)} raw articles")
 
     articles = deduplicate(articles)
