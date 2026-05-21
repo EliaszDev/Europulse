@@ -8,11 +8,8 @@ from europulse.rag.news import fetch_feed
 def test_fetch_feed_skips_old_articles(monkeypatch):
     """Articles older than `since` should be dropped."""
 
-    def fake_get(url, **kwargs):
+    def fake_fetch_url(url, **kwargs):
         class Resp:
-            def raise_for_status(self):
-                pass
-
             @property
             def text(self):
                 return """<?xml version="1.0"?>
@@ -30,7 +27,7 @@ def test_fetch_feed_skips_old_articles(monkeypatch):
 
         return Resp()
 
-    monkeypatch.setattr("europulse.rag.news.httpx.get", fake_get)
+    monkeypatch.setattr("europulse.rag.news.fetch_url", fake_fetch_url)
 
     since = datetime(2023, 6, 1, tzinfo=timezone.utc)
     articles = fetch_feed("Test", "http://fake", since=since)
@@ -41,11 +38,8 @@ def test_fetch_feed_skips_old_articles(monkeypatch):
 def test_fetch_feed_allows_all_when_since_is_none(monkeypatch):
     """When `since` is None all articles should pass through."""
 
-    def fake_get(url, **kwargs):
+    def fake_fetch_url(url, **kwargs):
         class Resp:
-            def raise_for_status(self):
-                pass
-
             @property
             def text(self):
                 return """<?xml version="1.0"?>
@@ -58,7 +52,7 @@ def test_fetch_feed_allows_all_when_since_is_none(monkeypatch):
 
         return Resp()
 
-    monkeypatch.setattr("europulse.rag.news.httpx.get", fake_get)
+    monkeypatch.setattr("europulse.rag.news.fetch_url", fake_fetch_url)
 
     articles = fetch_feed("Test", "http://fake", since=None)
     assert len(articles) == 1

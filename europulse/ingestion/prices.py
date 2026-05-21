@@ -6,8 +6,15 @@ import pandas as pd
 import yfinance as yf
 
 
-def fetch_prices(tickers: list[str], period: str = "2y") -> pd.DataFrame:
+def fetch_prices(
+    tickers: list[str],
+    period: str = "2y",
+    since: pd.Timestamp | str | None = None,
+) -> pd.DataFrame:
     """Download OHLCV data and normalise to long format.
+
+    *since* – when provided, only fetch data on or after this date
+    (useful for incremental ingestion).
 
     Returns DataFrame with columns: ticker, date, open, high, low, close, volume
     """
@@ -16,12 +23,17 @@ def fetch_prices(tickers: list[str], period: str = "2y") -> pd.DataFrame:
             columns=["ticker", "date", "open", "high", "low", "close", "volume"]
         )
 
-    data = yf.download(
-        tickers,
-        period=period,
+    download_kwargs = dict(
+        tickers=tickers,
         auto_adjust=True,
         progress=False,
     )
+    if since is not None:
+        download_kwargs["start"] = pd.Timestamp(since).strftime("%Y-%m-%d")
+    else:
+        download_kwargs["period"] = period
+
+    data = yf.download(**download_kwargs)
 
     if data.empty:
         return pd.DataFrame(

@@ -7,10 +7,10 @@ from datetime import datetime
 from typing import Any
 
 import feedparser
-import httpx
 from trafilatura import extract
 
 from europulse import config
+from europulse.ingestion.http import fetch_url
 
 
 def _hash(text: str) -> str:
@@ -50,8 +50,7 @@ def fetch_feed(
         title, link, summary, published, source, content_hash
     """
     try:
-        resp = httpx.get(url, timeout=15.0, follow_redirects=True)
-        resp.raise_for_status()
+        resp = fetch_url(url, timeout=15.0, follow_redirects=True)
         parsed = feedparser.parse(resp.text)
     except Exception as exc:
         print(f"  Warning: failed to fetch {name}: {exc}")
@@ -113,7 +112,7 @@ def deduplicate(articles: list[dict]) -> list[dict]:
 def scrape_article(link: str, max_len: int = 4000) -> str | None:
     """Fetch and extract article text via trafilatura."""
     try:
-        html = httpx.get(link, timeout=20.0, follow_redirects=True).text
+        html = fetch_url(link, timeout=20.0, follow_redirects=True).text
         text = extract(html, include_comments=False, include_tables=False)
         if text:
             return text[:max_len]

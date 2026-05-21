@@ -4,14 +4,17 @@ from __future__ import annotations
 
 import os
 
-import httpx
 import pandas as pd
+
+from europulse.ingestion.http import fetch_url
 
 FRED_API_URL = "https://api.stlouisfed.org/fred/series/observations"
 
 
-def _fetch_fred_series(series_id: str, api_key: str | None = None) -> pd.DataFrame:
-    """Fetch a single FRED series via the public API."""
+def _fetch_fred_series(
+    series_id: str, api_key: str | None = None, since: str | None = None
+) -> pd.DataFrame:
+    """Fetch a single FRED series via the public API with retries."""
     key = api_key or os.getenv("FRED_API_KEY", "")
     params: dict[str, str] = {
         "series_id": series_id,
@@ -20,9 +23,10 @@ def _fetch_fred_series(series_id: str, api_key: str | None = None) -> pd.DataFra
     }
     if key:
         params["api_key"] = key
+    if since:
+        params["observation_start"] = since
 
-    resp = httpx.get(FRED_API_URL, params=params, timeout=30.0)
-    resp.raise_for_status()
+    resp = fetch_url(FRED_API_URL, params=params, timeout=30.0)
     data = resp.json()
 
     observations = data.get("observations", [])
@@ -49,18 +53,23 @@ def _fetch_fred_series(series_id: str, api_key: str | None = None) -> pd.DataFra
     return df
 
 
-def fetch_fred(series: list[str], start: str = "2018-01-01") -> pd.DataFrame:
+def fetch_fred(
+    series: list[str], start: str = "2018-01-01", since: str | None = None
+) -> pd.DataFrame:
     """Download FRED series and return long-format DataFrame.
+
+    *since* overrides *start* when provided, pushing the filter to the API.
 
     Columns: series, date, value
     """
     if not series:
         return pd.DataFrame(columns=["series", "date", "value"])
 
+    api_since = since if since else start
     frames = []
     for s in series:
         try:
-            df = _fetch_fred_series(s)
+            df = _fetch_fred_series(s, since=api_since)
             if not df.empty:
                 df = df[df["date"] >= pd.to_datetime(start).date()]
                 frames.append(df)
@@ -72,7 +81,7 @@ def fetch_fred(series: list[str], start: str = "2018-01-01") -> pd.DataFrame:
     return pd.DataFrame(columns=["series", "date", "value"])
 
 
-def fetch_ecb(series: list[str]) -> pd.DataFrame:
+def fetch_ecb(series: list[str], since: str | None = None) -> pd.DataFrame:
     """Download ECB SDW series.
 
     Currently falls back to FRED aliases for common ECB series.
@@ -91,7 +100,7 @@ def fetch_ecb(series: list[str]) -> pd.DataFrame:
     for s in series:
         alias = fred_aliases.get(s, s)
         try:
-            df = _fetch_fred_series(alias)
+            df = _fetch_fred_series(alias, since=since)
             if not df.empty:
                 df["series"] = s  # preserve original series name
                 frames.append(df)

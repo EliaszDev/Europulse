@@ -13,7 +13,7 @@ def test_create_schema():
         "SELECT table_name FROM information_schema.tables WHERE table_schema = 'main'"
     ).fetchall()
     table_names = {t[0] for t in tables}
-    assert table_names == {"prices", "macro", "alerts", "logs"}
+    assert table_names == {"prices", "macro", "alerts", "logs", "report_runs"}
     conn.close()
 
 

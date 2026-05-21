@@ -11,6 +11,7 @@ from dotenv import load_dotenv
 
 from europulse import config
 from europulse.ingestion.db import create_schema, get_conn, upsert_macro, upsert_prices
+from europulse.ingestion.http import set_default_max_attempts
 from europulse.ingestion.macro import fetch_ecb, fetch_fred
 from europulse.ingestion.prices import fetch_prices
 from europulse.ingestion.quality import check_freshness, validate_prices
@@ -34,6 +35,22 @@ def _release_lock(lock_path: str = "data/.lock") -> None:
         os.remove(lock_path)
 
 
+def _get_max_price_date(conn) -> str | None:
+    """Return the latest price date in the DB as an ISO string, or None."""
+    row = conn.execute("SELECT MAX(date) FROM prices").fetchone()
+    if row and row[0]:
+        return str(row[0])
+    return None
+
+
+def _get_max_macro_date(conn) -> str | None:
+    """Return the latest macro date in the DB as an ISO string, or None."""
+    row = conn.execute("SELECT MAX(date) FROM macro").fetchone()
+    if row and row[0]:
+        return str(row[0])
+    return None
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="EuroPulse ETL")
     parser.add_argument(
@@ -46,9 +63,16 @@ def main() -> int:
         action="store_true",
         help="Fetch last 7 days of prices",
     )
+    parser.add_argument(
+        "--retry",
+        type=int,
+        default=3,
+        help="Max retry attempts for HTTP requests (default: 3)",
+    )
     args = parser.parse_args()
 
     load_dotenv()
+    set_default_max_attempts(args.retry)
 
     if not _acquire_lock():
         print("Lock file exists — another instance is running.", file=sys.stderr)
@@ -61,8 +85,20 @@ def main() -> int:
         period = "7d" if args.incremental else "2y" if args.backfill else "2y"
 
         # Prices
-        print(f"Fetching prices (period={period})...")
-        prices_df = fetch_prices(config.ALL_PRICE_TICKERS, period=period)
+        price_since = None
+        if args.incremental:
+            price_since = _get_max_price_date(conn)
+            if price_since:
+                print(f"Fetching prices since {price_since} ...")
+            else:
+                print(f"Fetching prices (period={period})...")
+        else:
+            print(f"Fetching prices (period={period})...")
+        prices_df = fetch_prices(
+            config.ALL_PRICE_TICKERS,
+            period=period,
+            since=price_since,
+        )
         if not prices_df.empty:
             upsert_prices(conn, prices_df)
             print(f"  -> {len(prices_df)} price rows inserted")
@@ -73,8 +109,12 @@ def main() -> int:
             print("  -> No price data returned")
 
         # Macro — FRED
-        print("Fetching FRED macro data...")
-        fred_df = fetch_fred(config.FRED_SERIES)
+        macro_since = _get_max_macro_date(conn) if args.incremental else None
+        if macro_since:
+            print(f"Fetching FRED macro data since {macro_since} ...")
+        else:
+            print("Fetching FRED macro data...")
+        fred_df = fetch_fred(config.FRED_SERIES, since=macro_since)
         if not fred_df.empty:
             upsert_macro(conn, fred_df)
             print(f"  -> {len(fred_df)} FRED rows inserted")
@@ -82,8 +122,11 @@ def main() -> int:
             print("  -> No FRED data returned")
 
         # Macro — ECB
-        print("Fetching ECB macro data...")
-        ecb_df = fetch_ecb(config.ECB_SERIES)
+        if macro_since:
+            print(f"Fetching ECB macro data since {macro_since} ...")
+        else:
+            print("Fetching ECB macro data...")
+        ecb_df = fetch_ecb(config.ECB_SERIES, since=macro_since)
         if not ecb_df.empty:
             upsert_macro(conn, ecb_df)
             print(f"  -> {len(ecb_df)} ECB rows inserted")

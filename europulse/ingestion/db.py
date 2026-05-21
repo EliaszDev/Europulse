@@ -53,6 +53,17 @@ def create_schema(conn: duckdb.DuckDBPyConnection) -> None:
             timestamp TIMESTAMP DEFAULT current_timestamp
         )
     """)
+    conn.execute("CREATE SEQUENCE IF NOT EXISTS report_runs_seq")
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS report_runs (
+            id INTEGER PRIMARY KEY DEFAULT nextval('report_runs_seq'),
+            run_at TIMESTAMP DEFAULT current_timestamp,
+            format TEXT,
+            output_path TEXT,
+            status TEXT,
+            duration_ms INTEGER
+        )
+    """)
 
 
 def upsert_prices(conn: duckdb.DuckDBPyConnection, df: pd.DataFrame) -> None:
@@ -73,3 +84,17 @@ def upsert_macro(conn: duckdb.DuckDBPyConnection, df: pd.DataFrame) -> None:
         SELECT * FROM macro_df
     """)
     conn.unregister("macro_df")
+
+
+def log_report_run(
+    conn: duckdb.DuckDBPyConnection,
+    format: str,
+    output_path: str,
+    status: str,
+    duration_ms: int = 0,
+) -> None:
+    """Log a report generation run to the database."""
+    conn.execute("""
+        INSERT INTO report_runs (format, output_path, status, duration_ms)
+        VALUES (?, ?, ?, ?)
+    """, [format, output_path, status, duration_ms])
