@@ -166,7 +166,7 @@ with tabs[1]:
             risk_data.append(
                 {
                     "ticker": t,
-                    "volatility": vol[-1] * 100,
+                    "volatility": vol.iloc[-1] * 100,
                     "max_drawdown": dd * 100,
                     "sharpe": sharpe,
                     "beta": beta,
