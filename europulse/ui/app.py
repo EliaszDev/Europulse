@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 from datetime import date, timedelta
 
 import duckdb
@@ -44,23 +43,19 @@ def load_data():
         macro = con.execute(
             "SELECT series, date, value FROM macro ORDER BY series, date"
         ).fetchdf()
-        news = con.execute(
-            "SELECT hash, title, source, published, url, content, tickers FROM news ORDER BY published DESC LIMIT 50"
-        ).fetchdf()
     finally:
         con.close()
-    return prices, macro, news
+    return prices, macro
 
 
 try:
-    prices_df, macro_df, news_df = load_data()
+    prices_df, macro_df = load_data()
 except Exception as e:
     st.error(f"Failed to load database: {e}")
     prices_df = pd.DataFrame(
         columns=["ticker", "date", "open", "high", "low", "close", "volume"]
     )
     macro_df = pd.DataFrame(columns=["series", "date", "value"])
-    news_df = pd.DataFrame(columns=["hash", "title", "source", "published", "url", "content", "tickers"])
 
 
 # ---------------------------------------------------------------------------
@@ -95,15 +90,6 @@ else:
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
-
-def _normalize(df: pd.DataFrame, ticker_col: str = "ticker", price_col: str = "close") -> pd.DataFrame:
-    out = []
-    for t, g in df.groupby(ticker_col):
-        g = g.sort_values("date").copy()
-        g["norm"] = g[price_col] / g[price_col].iloc[0] * 100
-        out.append(g)
-    return pd.concat(out, ignore_index=True)
-
 
 # ---------------------------------------------------------------------------
 # Tabs
@@ -244,7 +230,7 @@ with tabs[2]:
             lower = fc_df["lower"].to_numpy()
             upper = fc_df["upper"].to_numpy()
             last_date = group["date"].iloc[-1]
-            hist_dates = group["date"]
+            hist_dates = pd.to_datetime(group["date"])
             fc_dates = pd.date_range(
                 start=pd.to_datetime(last_date) + timedelta(days=1),
                 periods=horizon,
