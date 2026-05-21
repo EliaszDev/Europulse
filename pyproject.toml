@@ -31,6 +31,9 @@ dependencies = [
 [project.optional-dependencies]
 dev = ["pytest>=8.2.0", "respx>=0.21.0", "ruff>=0.4.0", "kaleido>=0.2.1,<1.0.0"]
 
+[tool.setuptools]
+packages = ["europulse"]
+
 [tool.ruff]
 line-length = 100
 select = ["E", "F", "I"]
