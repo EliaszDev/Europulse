@@ -29,7 +29,7 @@ def generate_regime_narrative(regime_df: pd.DataFrame) -> str:
     latest = regime_df.iloc[-1].to_dict()
     prompt = (
         "You are a senior European macro strategist. Interpret the following "
-        f"regime snapshot for a professional investor: {json.dumps(latest)}"
+        f"regime snapshot for a professional investor: {json.dumps(latest, default=str)}"
     )
     try:
         return query_llm(prompt, max_tokens=512)
