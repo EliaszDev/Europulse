@@ -9,8 +9,11 @@ import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 import streamlit as st
+from dotenv import load_dotenv
 
 from europulse import config
+
+load_dotenv()
 from europulse.analysis.forecast import exp_smooth_forecast, linear_forecast
 from europulse.analysis.regimes import detect_regimes
 from europulse.analysis.risk import (
@@ -119,7 +122,7 @@ with tabs[0]:
 
             st.dataframe(
                 regime_df[["date", "composite_regime", "signals_json"]].tail(10),
-                use_container_width=True,
+                width="stretch",
             )
 
             with st.spinner("Generating AI narrative..."):
@@ -175,7 +178,7 @@ with tabs[1]:
 
         if risk_data:
             risk_df = pd.DataFrame(risk_data)
-            st.dataframe(risk_df, use_container_width=True)
+            st.dataframe(risk_df, width="stretch")
 
             # Correlation heatmap
             if len(pivot.columns) > 1:
